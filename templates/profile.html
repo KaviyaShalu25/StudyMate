@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Profile — StudyMate</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="theme-purple">
+  <header class="topbar">
+    <div class="logo">StudyMate</div>
+    <div class="top-controls">
+      <a href="/">Home</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel profile-panel">
+      <h3>Profile</h3>
+      <form action="/profile" method="POST">
+        <label>Name</label>
+        <input name="name" value="{{ user.name }}" />
+        <label>Course</label>
+        <input name="course" value="{{ user.course }}" />
+        <label>Goals</label>
+        <input name="goals" value="{{ user.goals }}" />
+        <label>Avatar URL (optional)</label>
+        <input name="avatar" value="{{ user.avatar }}" />
+        <button type="submit">Save Profile</button>
+      </form>
+      <div class="profile-preview">
+        <h4>Preview</h4>
+        <div class="avatar">
+          {% if user.avatar %}
+            <img src="{{ user.avatar }}" alt="avatar" />
+          {% else %}
+            <div class="avatar-fallback">👩‍🎓</div>
+          {% endif %}
+        </div>
+        <div><strong>{{ user.name }}</strong></div>
+        <div>{{ user.course }}</div>
+        <div>{{ user.goals }}</div>
+      </div>
+    </section>
+  </main>
+
+<script src="/static/script.js"></script>
+</body>
+</html>

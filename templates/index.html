@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>StudyMate — Home</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="theme-purple">
+  <header class="topbar">
+    <div class="logo">StudyMate</div>
+    <div class="top-controls">
+      <input id="globalSearch" placeholder="Search tasks, descriptions..." />
+      <select id="themeSelect">
+        <option value="purple">Purple Neon</option>
+        <option value="midnight">Midnight Blue</option>
+        <option value="soft">Soft Pastel</option>
+      </select>
+      <a class="profile-link" href="/profile">Profile</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Top Stats -->
+    <section class="stats-row">
+      <div class="stat-card gradient-a">
+        <div class="stat-title">Total Tasks</div>
+        <div class="stat-value">{{ total }}</div>
+      </div>
+      <div class="stat-card gradient-b">
+        <div class="stat-title">Pending</div>
+        <div class="stat-value">{{ pending }}</div>
+      </div>
+      <div class="stat-card gradient-c">
+        <div class="stat-title">Completed</div>
+        <div class="stat-value">{{ completed }}</div>
+      </div>
+      <div class="stat-card gradient-d">
+        <div class="stat-title">Predicted High Priority</div>
+        <div class="stat-value">{{ predicted_high }}</div>
+      </div>
+    </section>
+
+    <!-- Top searches -->
+    <section class="top-searches">
+      <h3>Top Searches</h3>
+      <div class="search-list">
+        {% for q,count in top_searches %}
+          <div class="search-item">🔎 {{ q }} <span class="count">({{ count }})</span></div>
+        {% else %}
+          <div class="muted">No searches yet</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Charts row -->
+    <section class="charts-row">
+      <div class="panel left">
+        <h4>Tasks Over Time</h4>
+        <canvas id="lineChart"></canvas>
+      </div>
+
+      <div class="panel right">
+        <h4>Priority Distribution</h4>
+        <canvas id="pieChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Quick action cards below charts -->
+    <section class="quick-cards">
+      <a class="quick-card" href="#add">+ Add Task</a>
+      <a class="quick-card" href="#view">View Pending Tasks</a>
+      <a class="quick-card" href="#completed">Completed Tasks</a>
+      <a class="quick-card" href="/profile">Profile</a>
+    </section>
+
+    <!-- Add task area & view lists -->
+    <section class="task-area">
+      <div class="add-panel panel">
+        <h4 id="add">Add Task</h4>
+        <form id="addTaskForm" action="/add" method="POST">
+          <input name="title" placeholder="Task name" required />
+          <input name="date" type="date" />
+          <select name="priority">
+            <option>High</option><option selected>Medium</option><option>Low</option>
+          </select>
+          <textarea name="description" placeholder="description"></textarea>
+          <button type="submit">Add</button>
+        </form>
+      </div>
+
+      <div class="list-panel panel" id="view">
+        <h4>Pending Tasks</h4>
+        <div id="pendingList">
+          {% for t in tasks %}
+            {% if t.status != 'Completed' %}
+            <div class="task-card">
+              <div class="task-left">
+                <div class="task-title">{{ t.title }}</div>
+                <div class="task-meta">{{ t.priority }} • {{ t.date }}</div>
+              </div>
+              <div class="task-right">
+                <a class="btn small" href="/toggle/{{ t.id }}">Complete</a>
+                <a class="btn ghost" href="/delete/{{ t.id }}">Delete</a>
+              </div>
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <h4 id="completed">Completed Tasks</h4>
+        <div id="completedList">
+          {% for t in tasks %}
+            {% if t.status == 'Completed' %}
+            <div class="task-card completed">
+              <div class="task-left">
+                <div class="task-title">{{ t.title }}</div>
+                <div class="task-meta">Completed at: {{ t.completed_at }} • Time taken: {{ t.time_taken_minutes }} minutes</div>
+              </div>
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Floating AI bot -->
+  <div id="aiBot" class="ai-bot" title="Ask StudyMate">
+    <div id="aiIcon" class="ai-icon">🤖</div>
+  </div>
+
+  <!-- Chat bubble -->
+  <div id="chatBubble" class="chat-bubble hidden">
+    <div class="chat-header">
+      <span id="chatName">StudyMate</span>
+      <button id="closeChat">✕</button>
+    </div>
+    <div id="chatContent" class="chat-content"></div>
+    <div class="chat-input">
+      <input id="chatInput" placeholder="Ask a question..." />
+      <button id="chatSend">Send</button>
+    </div>
+  </div>
+
+<script>
+  // Prepare data for charts using server-provided values
+  const priorityCounts = {{ priority_counts | tojson }};
+  const completedCount = {{ completed }};
+  const pendingCount = {{ pending }};
+  // Build simple tasks-over-time data from tasks: group by creation date
+  const tasks = {{ tasks | tojson }};
+  // prepare date counts by creation date (YYYY-MM-DD)
+  const dateCounts = {};
+  tasks.slice().reverse().forEach(t=>{
+    const d = (t.created_at || "").slice(0,10) || "unknown";
+    dateCounts[d] = (dateCounts[d]||0)+1;
+  });
+  const labels = Object.keys(dateCounts).filter(l=>l!=="unknown").slice(-12);
+  const dataPoints = labels.map(l=>dateCounts[l]||0);
+
+  // line chart
+  const ctxLine = document.getElementById('lineChart').getContext('2d');
+  new Chart(ctxLine, {
+    type: 'line',
+    data: { labels: labels, datasets:[{ label:'Tasks created', data:dataPoints, fill:true, tension:0.3 }] },
+    options: { responsive:true, plugins:{legend:{display:false}} }
+  });
+
+  // pie chart
+  const ctxPie = document.getElementById('pieChart').getContext('2d');
+  new Chart(ctxPie, {
+    type:'pie',
+    data: { labels:['High','Medium','Low'], datasets:[{ data:[priorityCounts.High||0, priorityCounts.Medium||0, priorityCounts.Low||0] }]},
+    options:{ responsive:true }
+  });
+</script>
+<script src="/static/script.js"></script>
+</body>
+</html>
